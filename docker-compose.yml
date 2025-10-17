@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  pytest-bdd:
+    build:
+      context: .
+      dockerfile: containers/pytest-bdd.Dockerfile
+    environment:
+      - USE_MOCK_SENSORS=true
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+      - /app/__pycache__
+      - /app/.pytest_cache
+    working_dir: /app
+    command: pytest tests/test_temperature_collector.py -v --tb=short
+    
+  pytest-bdd-coverage:
+    build:
+      context: .
+      dockerfile: containers/pytest-bdd.Dockerfile
+    environment:
+      - USE_MOCK_SENSORS=true
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+      - /app/__pycache__
+      - /app/.pytest_cache
+    working_dir: /app
+    command: pytest tests/test_temperature_collector.py -v --cov=therm --cov-report=html --cov-report=term
+    
+  pytest-bdd-interactive:
+    build:
+      context: .
+      dockerfile: containers/pytest-bdd.Dockerfile
+    environment:
+      - USE_MOCK_SENSORS=true
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: /bin/bash
+    stdin_open: true
+    tty: true

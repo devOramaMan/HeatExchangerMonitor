@@ -1,0 +1,5 @@
+# Test dependencies for HeatExchangerMonitor
+pytest>=6.0
+pytest-bdd>=6.0
+pytest-mock>=3.0
+pytest-cov>=4.0

@@ -1,0 +1,93 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "HeatExchangerMonitor"
+dynamic = ["version"]
+description = "Temperature monitoring package for 4x DS18B20 sensors to monitor heat exchanger efficiency"
+authors = [
+    {name = "devoramaMan", email = "mrandreas@hotmail.com"}
+]
+maintainers = [
+    {name = "devoramaMan", email = "mrandreas@hotmail.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: System :: Hardware",
+    "Topic :: System :: Monitoring",
+]
+dependencies = [
+    "w1thermsensor>=1.0.5; platform_system=='Linux'",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=6.0",
+    "pytest-bdd>=6.0",
+    "pytest-mock>=3.0",
+]
+dev = [
+    "pytest>=6.0",
+    "pytest-bdd>=6.0",
+    "pytest-mock>=3.0",
+    "black",
+    "flake8",
+    "mypy",
+]
+
+[project.urls]
+Homepage = "https://github.com/devOramaMan/HeatExchangerMonitor"
+Repository = "https://github.com/devOramaMan/HeatExchangerMonitor"
+Issues = "https://github.com/devOramaMan/HeatExchangerMonitor/issues"
+
+[project.scripts]
+heat-exchanger-monitor = "therm.temperature_collector:main"
+therm-collector = "therm.temperature_collector:main"
+
+[tool.setuptools]
+packages = ["therm"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+therm = ["*.json"]
+
+[tool.setuptools.dynamic]
+version = {attr = "therm.__version__"}
+
+[tool.black]
+line-length = 88
+target-version = ['py37']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]

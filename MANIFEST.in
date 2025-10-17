@@ -1,0 +1,22 @@
+include README.md
+include LICENSE
+include USAGE.md
+include setup.py
+include MANIFEST.in
+
+# Include the therm package
+recursive-include therm *.py
+recursive-include therm *.json
+
+# Include scripts
+recursive-include scripts *.sh
+
+# Include test files
+recursive-include tests *.py
+
+# Exclude unnecessary files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude __pycache__
+global-exclude .git*
+global-exclude .pytest_cache
