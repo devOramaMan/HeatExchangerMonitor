@@ -3,13 +3,14 @@
 # depends
 ```  sh
 sudo apt install python3-venv python3-full python3-pip
-# Possibly requre to be done in environment (ref python env)
+# May require installation in virtual environment on target(see python virtual environment)
 pip install w1thermsensor
 pip install pytest
 pip install pytest-bdd
 ```
 
-## python env
+## python virtual environment
+
 ``` sh
 python3 -m venv ~/myenv
 #enter
@@ -17,6 +18,60 @@ source ~/myenv/bin/activate
 #exit
 deactivate
 ```
+
+### 3. Programmatic Usage
+
+```python
+from therm import TemperatureCollector
+
+# Initialize (automatically detects hardware vs mock)
+collector = TemperatureCollector()
+
+# Read all temperatures
+temperatures = collector.read_all_temperatures()
+
+# Calculate efficiency
+efficiency = collector.calculate_efficiency(temperatures)
+
+# Continuous monitoring
+collector.monitor_continuous(interval=30)
+```
+
+## Configuration
+
+### Device Mapping (`devicenames.json`)
+```json
+{
+    "T1": "28-32323232323232",  # Hot inlet
+    "T2": "28-323232545454545", # Hot outlet
+    "T3": "28-567890123456789", # Cold inlet
+    "T4": "28-665656565656565"  # Cold outlet
+}
+```
+
+## Environment Variables
+
+- `USE_MOCK_SENSORS=true` - Force mock mode for testing
+- `USE_MOCK_SENSORS=false` - Force hardware mode (override auto-detection)
+  
+## Testing
+
+```bash
+# Run unit tests
+cd tests/
+python -m pytest test_temperature_collector.py
+```
+
+Tests run in Docker image for CI/CD
+```bash
+# To print the command options
+./run_docker_tests.sh
+# Do all Build and run test
+./run_docker_tests.sh all
+# Run tests in Docker
+./run_docker_tests.sh  test
+```
+
 
 ## Troubleshooting
 
