@@ -126,7 +126,11 @@ jobs:
             pyproject.toml \
             requirements-test.txt \
             README.md \
-            USAGE.md
+            pytest.ini \
+            MANIFEST.in \
+            containers/ \
+            docker-compose.yml \
+            run_docker_tests.sh
             
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
