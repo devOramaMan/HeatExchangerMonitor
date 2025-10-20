@@ -129,7 +129,7 @@ jobs:
             USAGE.md
             
       - name: Upload deployment artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: heat-exchanger-monitor
           path: heat-exchanger-monitor.tar.gz
