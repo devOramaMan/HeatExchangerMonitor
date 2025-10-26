@@ -9,6 +9,8 @@ import time
 import os
 from datetime import datetime
 from typing import Dict, Optional
+from .mock_w1thermsensor import W1ThermSensor as SimulatedW1ThermSensor
+from .mock_w1thermsensor import Sensor as MockSensor
 
 # Check environment variable first for mock override
 USE_MOCK_OVERRIDE = os.environ.get('USE_MOCK_SENSORS', '').lower() in ('true', '1', 'yes')
@@ -66,7 +68,10 @@ class TemperatureCollector:
             try:
                 # Extract the sensor ID from the device path (remove "28-" prefix)
                 sensor_id = device_id.replace("28-", "")
-                sensor = W1ThermSensor(Sensor.DS18B20, sensor_id)
+                if 'simulated' in sensor_id.lower():
+                    sensor = SimulatedW1ThermSensor(MockSensor.DS18B20, sensor_id)
+                else:
+                    sensor = W1ThermSensor(Sensor.DS18B20, sensor_id)
                 self.sensors[name] = sensor
                 print(f"Initialized sensor {name} (ID: {device_id})")
             except Exception as e:
