@@ -14,10 +14,10 @@ if __name__ == "__main__":
     # set logger format 
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
     # output to console
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
-    console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    logging.getLogger().addHandler(console_handler)
+    #console_handler = logging.StreamHandler()
+    #console_handler.setLevel(logging.DEBUG)
+    #console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    #logging.getLogger().addHandler(console_handler)
 
 
     try:

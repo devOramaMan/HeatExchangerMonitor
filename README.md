@@ -4,7 +4,7 @@
 ```  sh
 sudo apt install python3-venv python3-full python3-pip
 # May require installation in virtual environment on target(see python virtual environment)
-pip install w1thermsensor pytest pytest-bdd azure-messaging-webpubsubservice websocketspi
+pip install w1thermsensor pytest pytest-bdd azure-messaging-webpubsubservice websockets
 ```
 
 ## python virtual environment
@@ -17,7 +17,7 @@ source ~/myenv/bin/activate
 deactivate
 ```
 
-### 3. Programmatic Usage
+### 3. Programmatic Usage Temperature Collector
 
 ```python
 from therm import TemperatureCollector
@@ -70,6 +70,176 @@ Tests run in Docker image for CI/CD
 ./run_docker_tests.sh  test
 ```
 
+# Publish temperature Collector to Web / DB
+
+
+```bash
+   #Get the connection string
+   az webpubsub key show \
+   --name HeatExchangerService \
+   --resource-group HeatExchangerRG \
+   --query primaryConnectionString \
+   -o tsv
+```
+Create secrets file  secrets.json
+```bash
+   "PG_DB_HOST": ""
+    "PG_DB_NAME": ""
+    "PG_DB_PASSWORD": "" 
+    "PG_DB_PORT": ""
+    "PG_DB_USER": ""
+    "AZURE_WEBPUBSUB_CONNECTION_STRING": "connection string"
+```
+
+
+## Setting up Systemd Service for Continuous Monitoring
+
+To run the temperature collector as a system service that starts automatically on boot, you'll need to create a systemd service file that properly handles the Python virtual environment.
+
+### 1. Create a Runner executable
+
+First, create a runner.py exe (bundle dependencies)
+
+```bash
+# Create the runner 
+pyinstaller --onefile --add-data "./therm/devicenames.json:." --add-data "secrets.json:." ./runner.py
+cp ./secrets.json ./dist
+cp therm/devicenames.json ./dist
+```
+
+### 2. Create Installation Directory and Setup
+
+```bash
+# Create service directory
+sudo mkdir -p /opt/heat-exchanger
+
+# Create dedicated service user
+sudo useradd --system --shell /bin/false --home /opt/heat-exchanger --create-home heat-exchanger
+
+# Copy application files
+sudo cp dist/* /opt/heat-exchanger/
+
+# Set proper ownership and permissions
+sudo chown -R heat-exchanger:heat-exchanger /opt/heat-exchanger
+sudo chmod +x /opt/heat-exchanger/runner
+
+# Add heat-exchanger user to gpio group (for hardware access)
+sudo usermod -a -G gpio heat-exchanger
+```
+
+### 4. Create Systemd Service File
+
+```bash
+sudo vi /etc/systemd/system/heat-exchanger.service
+```
+
+```ini
+[Unit]
+Description=Heat Exchanger Temperature Monitor
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=heat-exchanger
+Group=heat-exchanger
+WorkingDirectory=/opt/heat-exchanger
+ExecStart=/opt/heat-exchanger/runner
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=heat-exchanger
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/log
+ReadOnlyPaths=/opt/heat-exchanger
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 5. Enable and Start the Service
+
+```bash
+# Reload systemd configuration
+sudo systemctl daemon-reload
+
+# Enable service to start on boot
+sudo systemctl enable heat-exchanger.service
+
+# Start the service
+sudo systemctl start heat-exchanger.service
+
+# Check service status
+sudo systemctl status heat-exchanger.service
+```
+
+### 6. Service Management Commands
+
+```bash
+# View service logs
+sudo journalctl -u heat-exchanger.service -f
+
+# Stop the service
+sudo systemctl stop heat-exchanger.service
+
+# Restart the service
+sudo systemctl restart heat-exchanger.service
+
+# Disable service from starting on boot
+sudo systemctl disable heat-exchanger.service
+
+# View recent logs
+sudo journalctl -u heat-exchanger.service --since "1 hour ago"
+```
+
+### 7. Log File Location
+
+The service logs to both:
+- **systemd journal**: `sudo journalctl -u heat-exchanger.service`
+- **Log file**: `/var/log/heat-exchanger.log`
+
+```bash
+# Create log file with proper permissions
+sudo touch /var/log/heat-exchanger.log
+sudo chown $USER:$USER /var/log/heat-exchanger.log
+
+# View log file
+tail -f /var/log/heat-exchanger.log
+```
+
+### 8. Troubleshooting Service Issues
+
+**Error: "Failed at step USER spawning... No such process"**
+```bash
+# Check if heat-exchanger user exists
+id heat-exchanger
+
+# If user doesn't exist, create it:
+sudo useradd --system --shell /bin/false --home /opt/heat-exchanger heat-exchanger
+
+# Fix ownership and permissions
+sudo chown -R heat-exchanger:heat-exchanger /opt/heat-exchanger
+sudo chmod +x /opt/heat-exchanger/runner
+
+# Reload and restart service
+sudo systemctl daemon-reload
+sudo systemctl restart heat-exchanger.service
+```
+
+**Check executable permissions:**
+```bash
+# Verify executable is accessible
+sudo -u heat-exchanger /opt/heat-exchanger/runner --help
+
+# Check file permissions
+ls -la /opt/heat-exchanger/runner
+# Should show: -rwxr-xr-x ... heat-exchanger heat-exchanger ... runner
+```
 
 ## Troubleshooting
 

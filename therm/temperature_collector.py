@@ -7,6 +7,7 @@ Collects temperature readings from 4 DS18B20 sensors and calculates efficiency
 import json
 import time
 import os
+import sys
 from datetime import datetime
 from typing import Dict, Optional
 from .mock_w1thermsensor import W1ThermSensor as SimulatedW1ThermSensor
@@ -49,11 +50,56 @@ class TemperatureCollector:
         self.sensors = {}
         self.using_mock = USING_MOCK or USE_MOCK_OVERRIDE
         self._initialize_sensors()
+    
+    def _get_resource_path(self, relative_path: str) -> str:
+        """
+        Get path to bundled resource file, works for both development and PyInstaller bundle
+        
+        Args:
+            relative_path: Path relative to the bundle/script directory
+            
+        Returns:
+            Absolute path to the resource
+        """
+        try:
+            # PyInstaller creates a temporary folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+            log.info(f"Running as PyInstaller bundle, using temp path: {base_path}")
+        except AttributeError:
+            # Running in development/normal Python environment
+            base_path = os.path.abspath(".")
+            log.info(f"Running in development mode, using current directory: {base_path}")
+        
+        return os.path.join(base_path, relative_path)
         
     def _load_device_mapping(self) -> Dict[str, str]:
         """Load sensor device mappings from JSON file"""
         try:
-            config_path = os.path.join(os.path.dirname(__file__), self.config_file)
+            # Try multiple locations for the config file
+            config_paths = [
+                # 1. Bundled resource (PyInstaller)
+                self._get_resource_path(self.config_file),
+                # 2. Package directory (development)
+                os.path.join(os.path.dirname(__file__), self.config_file),
+                # 3. Current working directory
+                self.config_file,
+                # 4. Parent directory (project root)
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), self.config_file)
+            ]
+            
+            config_path = None
+            for path in config_paths:
+                if os.path.exists(path):
+                    config_path = path
+                    log.info(f"Found config file: {config_path}")
+                    break
+            
+            if not config_path:
+                raise FileNotFoundError(
+                    f"Config file '{self.config_file}' not found in any of these locations:\n" +
+                    "\n".join(f"  - {path}" for path in config_paths)
+                )
+            
             with open(config_path, 'r') as f:
                 mapping = json.load(f)
             log.info(f"Loaded device mapping: {mapping}")
