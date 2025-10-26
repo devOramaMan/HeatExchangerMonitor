@@ -11,6 +11,9 @@ from datetime import datetime
 from typing import Dict, Optional
 from .mock_w1thermsensor import W1ThermSensor as SimulatedW1ThermSensor
 from .mock_w1thermsensor import Sensor as MockSensor
+import logging
+
+log = logging.getLogger(__name__)
 
 # Check environment variable first for mock override
 USE_MOCK_OVERRIDE = os.environ.get('USE_MOCK_SENSORS', '').lower() in ('true', '1', 'yes')
@@ -53,13 +56,13 @@ class TemperatureCollector:
             config_path = os.path.join(os.path.dirname(__file__), self.config_file)
             with open(config_path, 'r') as f:
                 mapping = json.load(f)
-            print(f"Loaded device mapping: {mapping}")
+            log.info(f"Loaded device mapping: {mapping}")
             return mapping
         except FileNotFoundError:
-            print(f"Config file {self.config_file} not found!")
+            log.error(f"Config file {self.config_file} not found!")
             raise
         except json.JSONDecodeError as e:
-            print(f"Invalid JSON in {self.config_file}: {e}")
+            log.error(f"Invalid JSON in {self.config_file}: {e}")
             raise
             
     def _initialize_sensors(self):
@@ -73,10 +76,10 @@ class TemperatureCollector:
                 else:
                     sensor = W1ThermSensor(Sensor.DS18B20, sensor_id)
                 self.sensors[name] = sensor
-                print(f"Initialized sensor {name} (ID: {device_id})")
+                log.info(f"Initialized sensor {name} (ID: {device_id})")
             except Exception as e:
-                print(f"Failed to initialize sensor {name} (ID: {device_id}): {e}")
-                
+                log.error(f"Failed to initialize sensor {name} (ID: {device_id}): {e}")
+
     def read_temperature(self, sensor_name: str, unit = None) -> Optional[float]:
         """
         Read temperature from a specific sensor
@@ -89,7 +92,7 @@ class TemperatureCollector:
             Temperature reading or None if failed
         """
         if sensor_name not in self.sensors:
-            print(f"Sensor {sensor_name} not found!")
+            log.warning(f"Sensor {sensor_name} not found!")
             return None
             
         # Set default unit if not provided
@@ -98,10 +101,10 @@ class TemperatureCollector:
             
         try:
             temperature = self.sensors[sensor_name].get_temperature(unit)
-            print(f"{sensor_name}: {temperature:.2f}°C")
+            log.info(f"{sensor_name}: {temperature:.2f}°C")
             return temperature
         except Exception as e:
-            print(f"Error reading {sensor_name}: {e}")
+            log.error(f"Error reading {sensor_name}: {e}")
             return None
             
     def read_all_temperatures(self) -> Dict[str, float]:
@@ -112,9 +115,9 @@ class TemperatureCollector:
             Dictionary with sensor names as keys and temperatures as values
         """
         temperatures = {}
-        print(f"\nReading temperatures at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print("-" * 50)
-        
+        log.info(f"Reading temperatures at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        log.info("-" * 50)
+
         for sensor_name in self.device_mapping.keys():
             temp = self.read_temperature(sensor_name)
             if temp is not None:
@@ -140,7 +143,7 @@ class TemperatureCollector:
         # Check if all required sensors have readings
         for sensor in required_sensors:
             if sensor not in temperatures:
-                print(f"Missing temperature reading for {sensor}")
+                log.warning(f"Missing temperature reading for {sensor}")
                 return None
                 
         try:
@@ -148,36 +151,36 @@ class TemperatureCollector:
             T2 = temperatures['T2']  # Hot outlet  
             T3 = temperatures['T3']  # Cold inlet
             T4 = temperatures['T4']  # Cold outlet
-            
-            print(f"\nHeat Exchanger Analysis:")
-            print(f"   Hot side:  {T1:.2f}°C -> {T2:.2f}°C (dT = {T1-T2:.2f}°C)")
-            print(f"   Cold side: {T3:.2f}°C -> {T4:.2f}°C (dT = {T4-T3:.2f}°C)")
-            
+
+            log.info(f"\nHeat Exchanger Analysis:")
+            log.info(f"   Hot side:  {T1:.2f}°C -> {T2:.2f}°C (dT = {T1-T2:.2f}°C)")
+            log.info(f"   Cold side: {T3:.2f}°C -> {T4:.2f}°C (dT = {T4-T3:.2f}°C)")
+
             # Calculate effectiveness (efficiency)
             if T1 - T3 == 0:
-                print("Cannot calculate efficiency: No temperature difference between hot and cold inlet")
+                log.warning("Cannot calculate efficiency: No temperature difference between hot and cold inlet")
                 return None
                 
             efficiency = (T4 - T3) / (T1 - T3) * 100
-            
-            print(f"Heat Exchanger Efficiency: {efficiency:.1f}%")
+
+            log.info(f"Heat Exchanger Efficiency: {efficiency:.1f}%")
             
                 
             return efficiency
             
         except Exception as e:
-            print(f"Error calculating efficiency: {e}")
+            log.error(f"Error calculating efficiency: {e}")
             return None
             
-    def monitor_continuous(self, interval: int = 30):
+    def monitor_continuous(self, interval: int = 30, callback=None):
         """
         Continuously monitor temperatures and efficiency
         
         Args:
             interval: Reading interval in seconds
         """
-        print(f"Starting continuous monitoring (interval: {interval}s)")
-        print("Press Ctrl+C to stop")
+        log.info(f"Starting continuous monitoring (interval: {interval}s)")
+        log.info("Press Ctrl+C to stop")
         
         try:
             while True:
@@ -185,16 +188,20 @@ class TemperatureCollector:
                 
                 if temperatures:
                     efficiency = self.calculate_efficiency(temperatures)
+                    temperatures['Efficiency'] = efficiency
                     
                     # Log to file (optional)
                     self._log_reading(temperatures, efficiency)
                 
-                print(f"\nNext reading in {interval} seconds...")
+                if callback:
+                    callback(temperatures)
+
+                log.info(f"Next reading in {interval} seconds...")
                 time.sleep(interval)
                 
         except KeyboardInterrupt:
-            print("\nMonitoring stopped by user")
-            
+            log.info("Monitoring stopped by user")
+
     def _log_reading(self, temperatures: Dict[str, float], efficiency: Optional[float]):
         """Log reading to file (optional feature)"""
         try:
@@ -210,11 +217,19 @@ class TemperatureCollector:
                 f.write("\n")
                 
         except Exception as e:
-            print(f"Warning: Could not write to log file: {e}")
+            log.warning(f"Could not write to log file: {e}")
 
 
 def main():
     """Main function"""
+    # set logger format 
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    # output to console
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logging.getLogger().addHandler(console_handler)
+
     try:
         # Initialize collector
         collector = TemperatureCollector()
@@ -227,14 +242,15 @@ def main():
             print("Tip: Set environment variable USE_MOCK_SENSORS=false to use real hardware")
         
         # Single reading
-        print("\n=== Single Temperature Reading ===")
+        log.info("\n=== Single Temperature Reading ===")
         temperatures = collector.read_all_temperatures()
         
         if temperatures:
             efficiency = collector.calculate_efficiency(temperatures)
+            log.info(f"temperature reading: {temperatures}, efficiency: {efficiency:.1f}%")
         
         # Ask if user wants continuous monitoring
-        print("\n" + "="*50)
+        log.info("\n" + "="*50)
         response = input("Start continuous monitoring? (y/N): ").lower()
         
         if response in ['y', 'yes']:
@@ -242,13 +258,13 @@ def main():
                 interval = int(input("Enter reading interval in seconds (default 30): ") or "30")
                 collector.monitor_continuous(interval)
             except ValueError:
-                print("Invalid interval, using default (30s)")
+                log.warning("Invalid interval, using default (30s)")
                 collector.monitor_continuous(30)
         else:
-            print("Single reading complete.")
-            
+            log.info("Single reading complete.")
+
     except Exception as e:
-        print(f"Error: {e}")
+        log.error(f"Error: {e}")
         return 1
         
     return 0

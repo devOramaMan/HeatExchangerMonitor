@@ -4,7 +4,7 @@
 ```  sh
 sudo apt install python3-venv python3-full python3-pip
 # May require installation in virtual environment on target(see python virtual environment)
-pip install w1thermsensor pytest pytest-bdd azure-messaging-webpubsubservice
+pip install w1thermsensor pytest pytest-bdd azure-messaging-webpubsubservice websocketspi
 ```
 
 ## python virtual environment
