@@ -36,7 +36,7 @@ if __name__ == "__main__":
             hub_name="heat_exchanger_hub"
         )
         # start monitor thread
-        collector.start_monitoring(interval=5, callback=publisher.publish_temperature)
+        collector.monitor_continuous(interval=5, callback=publisher.publish_temperature)
 
 
     except Exception as e:
